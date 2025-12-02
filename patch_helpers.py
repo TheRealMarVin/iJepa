@@ -1,9 +1,13 @@
 def make_patch_grid(image_size, patch_size):
     """
+    Args:
+        image_size: (width, height) in pixels, or a single int for square images.
+        patch_size: size of each square patch, in pixels.
+
     Returns:
-        nb_horizontal_patches: number of patch rows
-        nb_vertical_patches: number of patch columns
-        coords: list of (row, col) tuples, one per patch index
+        nb_vertical_patches: number of patch rows (height direction)
+        nb_horizontal_patches: number of patch columns (width direction)
+        coords: flat list of (row, col) tuples in row-major order
     """
     if not isinstance(image_size, (tuple, list)):
         image_size = (image_size, image_size)

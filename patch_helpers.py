@@ -1,3 +1,6 @@
+import random
+
+
 def make_patch_grid(image_size, patch_size):
     """
     Args:
@@ -21,3 +24,46 @@ def make_patch_grid(image_size, patch_size):
 
     coords = [(i, j) for j in range(nb_vertical_patches) for i in range(nb_horizontal_patches)]
     return nb_vertical_patches, nb_horizontal_patches, coords
+
+def sample_block(nb_patches,
+                 min_block_height,
+                 max_block_height,
+                 min_block_width,
+                 max_block_width):
+    """
+    Sample a rectangular block in patch space.
+
+    Args:
+        nb_patches: (nb_horizontal_patches, nb_vertical_patches)
+            where horizontal = width-wise, vertical = height-wise.
+        min/max block sizes in patches.
+
+    Returns:
+        indices: list of linear patch indices (row-major)
+        pos: (x, y) = top-left col, row in patch units
+        size: (width, height) in patch units
+    """
+    nb_horizontal_patches, nb_vertical_patches = nb_patches
+
+    if max_block_height < min_block_height:
+        raise ValueError("max block height is smaller than min")
+
+    if max_block_width < min_block_width:
+        raise ValueError("max block width is smaller than min")
+
+    height = random.randint(min_block_height, min(max_block_height, nb_vertical_patches))
+    width = random.randint(min_block_width, min(max_block_width, nb_horizontal_patches))
+
+    y = random.randint(0, nb_vertical_patches - height)
+    x = random.randint(0, nb_horizontal_patches - width)
+
+    pos = (x, y)
+    size = (width, height)
+
+    indices = [
+        ( (y + h) * nb_horizontal_patches ) + (x + w)
+        for h in range(height)
+        for w in range(width)
+    ]
+
+    return indices, pos, size

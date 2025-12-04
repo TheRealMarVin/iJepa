@@ -67,3 +67,40 @@ def sample_block(nb_patches,
     ]
 
     return indices, pos, size
+
+def sample_multiple_blocks(
+    nb_patches,              # (nb_horizontal_patches, nb_vertical_patches)
+    num_blocks,              # number of blocks to sample
+    min_block_height,
+    max_block_height,
+    min_block_width,
+    max_block_width,
+    max_tries_per_block=20,
+):
+    """
+    Returns:
+        blocks: list of dicts, each containing:
+            {
+                "indices": [...],   # list of linear patch indices
+                "pos": (x, y),      # top-left patch coords
+                "size": (w, h),     # width, height in patches
+            }
+
+        used_indices: set of all used indices (for inspection)
+    """
+    blocks = []
+    used_indices = set()
+
+    for i in range(num_blocks):
+        for j in range(max_tries_per_block):
+            indices, pos, size = sample_block(nb_patches, min_block_height,
+                                              max_block_height, min_block_width,
+                                              max_block_width)
+            if not used_indices.intersection(indices):
+                used_indices.update(indices)
+                blocks.append({"indices": indices, "pos": pos, "size": size})
+                break
+        if j >= (max_tries_per_block - 1):
+            break
+
+    return blocks, used_indices

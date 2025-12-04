@@ -92,6 +92,7 @@ def sample_multiple_blocks(
     used_indices = set()
 
     for i in range(num_blocks):
+        found = False
         for j in range(max_tries_per_block):
             indices, pos, size = sample_block(nb_patches, min_block_height,
                                               max_block_height, min_block_width,
@@ -99,8 +100,9 @@ def sample_multiple_blocks(
             if not used_indices.intersection(indices):
                 used_indices.update(indices)
                 blocks.append({"indices": indices, "pos": pos, "size": size})
+                found = True
                 break
-        if j >= (max_tries_per_block - 1):
+        if not found:
             break
 
     return blocks, used_indices

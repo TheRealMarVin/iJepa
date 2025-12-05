@@ -1,5 +1,7 @@
 import random
 
+import torch
+
 
 def make_patch_grid(image_size, patch_size):
     """
@@ -140,3 +142,18 @@ def generate_context_and_targets(
     target_indices_list = [block["indices"] for block in target_blocks]
 
     return context_indices, target_indices_list
+
+def build_index_mask_from_lists(context_indices_list, device=None):
+    """
+    Args:
+        context_indices_list: list of list[int], length B.
+            All inner lists must have the same length.
+        device: optional torch.device
+
+    Returns:
+        masks: LongTensor of shape [B, N_context]
+    """
+    masks = torch.tensor(context_indices_list, dtype=torch.long, device=device)
+
+    return masks
+

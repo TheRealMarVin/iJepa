@@ -3,38 +3,95 @@ from datetime import timedelta
 
 import torch
 from torch.optim import lr_scheduler
+from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-from helpers.metrics_helpers import arg_max_accuracy
 from train_eval.eval import evaluate
 
 
-def train(model, train_dataset, optimizer,
-          criterion, scheduler, batch_size,
-          n_epochs, shuffle, summary, save_file,
-          early_stop=None, train_ratio=0.85, true_index=1):
-    tc = int(len(train_dataset) * train_ratio)
-    best_valid_loss = float('inf')
+DEFAULT_NUM_WORKERS = 4
+
+
+def train(
+    model,
+    train_dataset,
+    optimizer,
+    criterion,
+    scheduler,
+    batch_size,
+    n_epochs,
+    shuffle,
+    summary,
+    save_file,
+    early_stop=None,
+    train_ratio=0.85,
+    true_index=1,
+    device=None,
+    num_workers=DEFAULT_NUM_WORKERS,
+    resplit_validation_each_epoch=False,
+    fixed_split_seed=None
+):
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model = model.to(device)
+
+    dataset_length = len(train_dataset)
+    train_count = int(dataset_length * train_ratio)
+    valid_count = dataset_length - train_count
+
+    best_valid_loss = float("inf")
+
+    if not resplit_validation_each_epoch:
+        train_loader, valid_loader = _create_data_loaders(
+            train_dataset,
+            train_count,
+            valid_count,
+            batch_size,
+            num_workers,
+            shuffle,
+            fixed_split_seed
+        )
+
+    metrics = {"loss": criterion}
 
     for epoch in range(n_epochs):
         start_time = time.time()
-        x, y = torch.utils.data.random_split(train_dataset, [tc, len(train_dataset) - tc])
-        train_iterator = torch.utils.data.DataLoader(x, batch_size=batch_size, num_workers=4, shuffle=shuffle)
-        valid_iterator = torch.utils.data.DataLoader(y, batch_size=batch_size, num_workers=4, shuffle=shuffle)
 
-        metrics = {"loss": criterion, "acc": arg_max_accuracy}
-        train_metrics = train_epoch(model, train_iterator, optimizer, criterion, metrics, true_index=true_index)
-        _, _, validation_metrics = evaluate(model, valid_iterator, metrics, true_index=true_index)
+        if resplit_validation_each_epoch:
+            train_loader, valid_loader = _create_data_loaders(
+                train_dataset,
+                train_count,
+                valid_count,
+                batch_size,
+                num_workers,
+                shuffle,
+                fixed_split_seed,
+                epoch_offset=epoch
+            )
+
+        train_metrics = train_epoch(
+            model,
+            train_loader,
+            optimizer,
+            criterion,
+            metrics,
+            device=device,
+            true_index=true_index
+        )
+
+        _, _, validation_metrics = evaluate(model, valid_loader, metrics, true_index=true_index)
+
         if scheduler is not None:
-            if type(scheduler) == lr_scheduler.ReduceLROnPlateau:
+            if isinstance(scheduler, lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(validation_metrics["loss"])
             else:
                 scheduler.step()
 
         end_time = time.time()
-
         delta_time = timedelta(seconds=(end_time - start_time))
 
+        # Save best model
         if validation_metrics["loss"] < best_valid_loss:
             best_valid_loss = validation_metrics["loss"]
             if save_file is not None:
@@ -44,6 +101,7 @@ def train(model, train_dataset, optimizer,
         train_str = metrics_to_string(train_metrics, "train")
         validation_str = metrics_to_string(validation_metrics, "val")
         print("{}\n\t{} - {}".format(header_str, train_str, validation_str))
+
         log_metrics_in_tensorboard(summary, train_metrics, epoch, "train")
         log_metrics_in_tensorboard(summary, validation_metrics, epoch, "val")
         summary.flush()
@@ -55,55 +113,83 @@ def train(model, train_dataset, optimizer,
     return best_valid_loss
 
 
-def train_epoch(model, iterator, optimizer, criterion, metrics_dict, true_index = 1):
+def _create_data_loaders(
+    dataset,
+    train_count,
+    valid_count,
+    batch_size,
+    num_workers,
+    shuffle,
+    fixed_split_seed=None,
+    epoch_offset=0
+):
+    generator = None
+    if fixed_split_seed is not None:
+        generator = torch.Generator()
+        generator.manual_seed(fixed_split_seed + epoch_offset)
+
+    train_subset, valid_subset = random_split(dataset,[train_count, valid_count], generator=generator)
+
+    train_loader = DataLoader(train_subset, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
+    valid_loader = DataLoader(valid_subset, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
+
+    return train_loader, valid_loader
+
+
+def train_epoch(model, iterator, optimizer, criterion, metrics_dict, device, true_index=1):
     metric_scores = {}
-    for k, _ in metrics_dict.items():
-        metric_scores[k] = 0
+    for key in metrics_dict.keys():
+        metric_scores[key] = 0.0
 
     model.train()
 
-    for i, batch in tqdm(enumerate(iterator), total=len(iterator), desc="train"):
-        src = batch[0]
-        y_true = batch[true_index]
+    for batch_index, batch in tqdm(enumerate(iterator), total=len(iterator), desc="train"):
+        inputs = batch[0]
+        targets = batch[true_index]
 
-        if len(y_true.shape) == 1:
-            y_true = y_true.type('torch.LongTensor')
+        if len(targets.shape) == 1:
+            targets = targets.long()
 
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        if device.type == 'cuda':
-            src = src.cuda()
-            y_true = y_true.cuda()
+        inputs = inputs.to(device)
+        targets = targets.to(device)
 
         optimizer.zero_grad()
 
-        y_pred = model(src)
-        loss = criterion(y_pred, y_true)
+        predictions = model(inputs)
+
+        if isinstance(predictions, tuple):
+            predictions, _ = predictions
+
+        loss = criterion(predictions, targets)
 
         loss.backward()
         optimizer.step()
 
-        for k, metric in metrics_dict.items():
-            metric_scores[k] += metric(y_pred.detach(), y_true.view(-1).detach()).item()
+        for key, metric in metrics_dict.items():
+            if key == "loss":
+                metric_scores[key] += loss.item()
+            else:
+                metric_scores[key] += metric(predictions.detach(), targets.view(-1).detach()).item()
 
-        del src
+        del inputs
+        del targets
+        del predictions
         del loss
-        del y_pred
-        del y_true
 
-    for k, v in metric_scores.items():
-        metric_scores[k] = v / len(iterator)
+    for key, value in metric_scores.items():
+        metric_scores[key] = value / len(iterator)
 
     return metric_scores
 
 
 def log_metrics_in_tensorboard(summary, metrics, epoch, prefix):
-    for k, val in metrics.items():
-        summary.add_scalar("{}/{}".format(prefix, k), val, epoch + 1)
+    for key, value in metrics.items():
+        summary.add_scalar("{}/{}".format(prefix, key), value, epoch + 1)
 
 
 def metrics_to_string(metrics, prefix):
-    res = []
-    for k, val in metrics.items():
-        res.append("{} {}:{:.4f}".format(prefix, k, val))
+    parts = []
+    for key, value in metrics.items():
+        parts.append("{} {}:{:.4f}".format(prefix, key, value))
 
-    return " ".join(res)
+    return " ".join(parts)

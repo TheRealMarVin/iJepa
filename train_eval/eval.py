@@ -15,53 +15,66 @@ def reshape_prediction_for_compatibility(raw_output):
     return np.array(reshaped_res)
 
 
-def evaluate(model, iterator, metrics_dict, true_index = 1):
+def evaluate(
+    model,
+    iterator,
+    metrics_dict,
+    true_index=1,
+    device=None,
+    return_all_predictions=True,
+):
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     model.eval()
 
     metric_scores = {}
-    for k, _ in metrics_dict.items():
-        metric_scores[k] = 0
+    for key in metrics_dict.keys():
+        metric_scores[key] = 0.0
+
+    all_pred = []
+    all_true = []
 
     with torch.no_grad():
-        all_pred = []
-        all_true = []
+        for batch_index, batch in tqdm(enumerate(iterator), total=len(iterator), desc="eval"):
+            inputs = batch[0]
+            targets = batch[true_index]
 
-        for i, batch in tqdm(enumerate(iterator), total=len(iterator), desc="eval"):
-            src = batch[0]
-            y_true = batch[true_index]
+            if len(targets.shape) == 1:
+                targets = targets.long()
 
-            if len(y_true.shape) == 1:
-                y_true = y_true.type('torch.LongTensor')
+            inputs = inputs.to(device)
+            targets = targets.to(device)
 
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            if device.type == 'cuda':
-                src = src.cuda()
-                y_true = y_true.cuda()
+            outputs = model(inputs)
 
-            y_pred = model(src)
-            for k, metric in metrics_dict.items():
-                curr_batch_metric = metric(y_pred.detach(), y_true.view(-1).detach())
-                metric_scores[k] += curr_batch_metric.item()
-                del curr_batch_metric
+            if isinstance(outputs, tuple):
+                outputs, _ = outputs
 
-            if type(y_pred) is tuple:
-                y_pred, _ = y_pred
+            for key, metric in metrics_dict.items():
+                batch_metric = metric(outputs.detach(), targets.view(-1).detach())
+                metric_scores[key] += batch_metric.item()
 
-            all_pred.extend(y_pred.detach().cpu().numpy())
-            all_true.extend(y_true.detach().cpu().numpy())
+            if return_all_predictions:
+                all_pred.extend(outputs.detach().cpu().numpy())
+                all_true.extend(targets.detach().cpu().numpy())
 
-            del y_pred
-            del src
-            del y_true
+            del inputs
+            del targets
+            del outputs
 
-    for k, v in metric_scores.items():
-        metric_scores[k] = v / len(iterator)
+    for key, value in metric_scores.items():
+        metric_scores[key] = value / len(iterator)
 
     return all_pred, all_true, metric_scores
 
 
 def convert_string(tokenizer, device, field, text):
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     tokenized_text = tokenizer(text)
-    res = torch.LongTensor([field.vocab.stoi[x] for x in tokenized_text]).to(device)
-    res = res.unsqueeze(-1)
+    indices = [field.vocab.stoi[x] for x in tokenized_text]
+
+    res = torch.LongTensor([indices]).to(device)
     return res

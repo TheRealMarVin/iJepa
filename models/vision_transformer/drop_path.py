@@ -13,9 +13,7 @@ class DropPath(nn.Module):
         keep_prob = 1.0 - self.drop_prob
 
         shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-        random_tensor = keep_prob + torch.rand(
-            shape, dtype=x.dtype, device=x.device
-        )
+        random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
         random_tensor.floor_()
 
         return x.div(keep_prob) * random_tensor

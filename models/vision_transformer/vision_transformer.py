@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
+from models.vision_transformer.positional_encoding import build_sinusoidal_positional_encoding
 from models.vision_transformer.transformer_encoder_block import TransformerEncoderBlock
-from models.vision_transformer.utils import build_sinusoidal_positional_encoding
 
 
 class VisionTransformer(nn.Module):
@@ -40,11 +40,7 @@ class VisionTransformer(nn.Module):
         encoder_list = []
         for _ in range(nb_encoder_blocks):
             encoder_list.append(
-                TransformerEncoderBlock(
-                    input_dim=embedding_dim,
-                    nb_heads=nb_heads,
-                    hidden_size=embedding_dim * 2,
-                )
+                TransformerEncoderBlock(embed_dim=embedding_dim, nb_heads=nb_heads)
             )
         self.encoder_block = nn.ModuleList(encoder_list)
 
@@ -59,7 +55,6 @@ class VisionTransformer(nn.Module):
         else:
             tokens = embedding
 
-        # Add positional embeddings (broadcast over batch)
         tokens = tokens + self.positional_embeddings[:, :tokens.size(1), :]
 
         encoder = tokens

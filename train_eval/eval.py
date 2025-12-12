@@ -53,7 +53,13 @@ def evaluate(
 
             for key, metric in metrics_dict.items():
                 batch_metric = metric(outputs.detach(), targets.view(-1).detach())
-                metric_scores[key] += batch_metric.item()
+
+                if isinstance(batch_metric, torch.Tensor):
+                    metric_value = batch_metric.item()
+                else:
+                    metric_value = float(batch_metric)
+
+                metric_scores[key] += metric_value
 
             if return_all_predictions:
                 all_pred.extend(outputs.detach().cpu().numpy())

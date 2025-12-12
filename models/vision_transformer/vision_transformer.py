@@ -5,13 +5,13 @@ from models.vision_transformer.transformer_encoder_block import TransformerEncod
 from models.vision_transformer.utils import build_sinusoidal_positional_encoding
 
 
-class VisionTranformer(nn.Module):
+class VisionTransformer(nn.Module):
     def __init__(self, embedding_layer,
                  img_size,
                  nb_encoder_blocks,
                  nb_heads,
                  use_class_token=True):
-        super(VisionTranformer, self).__init__()
+        super(VisionTransformer, self).__init__()
 
         self.img_size = img_size
         self.embedding_layer = embedding_layer

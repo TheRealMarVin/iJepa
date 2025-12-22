@@ -1,7 +1,7 @@
 from torch.utils.tensorboard import SummaryWriter
 
-from common_training_setup import run_specific_experiment
 from helpers.dataset_helpers import get_mnist_sets
+from ijepa_training_setup import run_specific_experiment
 from models.vision_transformer.conv_embedding import ConvEmbedding
 from models.vision_transformer.vision_transformer_classifier import ViTClassifier
 

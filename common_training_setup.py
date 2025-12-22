@@ -11,14 +11,10 @@ from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 
 from helpers.metrics_helpers import arg_max_accuracy
-from helpers.result_helpers import get_miss_classified, display_gallery
+from helpers.result_helpers import display_gallery, prepare_misclassified_for_gallery, get_misclassified_samples
 from train_eval.eval import evaluate
 from train_eval.training import train, metrics_to_string
 
-
-# -------------------------
-# Config helpers
-# -------------------------
 
 def load_training_config(train_config_file):
     config = ConfigParser()
@@ -35,10 +31,10 @@ def load_training_config(train_config_file):
     else:
         train_ratio = 0.85
 
-    if config.has_option(section, "num_workers"):
-        num_workers = config.getint(section, "num_workers")
+    if config.has_option(section, "nb_workers"):
+        nb_workers = config.getint(section, "nb_workers")
     else:
-        num_workers = 4
+        nb_workers = 4
 
     if config.has_option(section, "weight_decay"):
         weight_decay = config.getfloat(section, "weight_decay")
@@ -58,14 +54,14 @@ def load_training_config(train_config_file):
     if config.has_option(section, "nb_misclassified"):
         nb_misclassified = config.getint(section, "nb_misclassified")
     else:
-        nb_misclassified = 50
+        nb_misclassified = 18
 
     config_values = {
         "nb_epochs": nb_epochs,
         "batch_size": batch_size,
         "learning_rate": learning_rate,
         "train_ratio": train_ratio,
-        "num_workers": num_workers,
+        "nb_workers": nb_workers,
         "weight_decay": weight_decay,
         "scheduler_type": scheduler_type,
         "save_dir": save_dir,
@@ -74,10 +70,6 @@ def load_training_config(train_config_file):
 
     return config_values
 
-
-# -------------------------
-# Optimizer / scheduler helpers
-# -------------------------
 
 def create_optimizer(model, learning_rate, weight_decay):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -92,29 +84,20 @@ def create_scheduler(optimizer, scheduler_type, nb_epochs):
     elif scheduler_type == "plateau":
         scheduler = lr_scheduler.ReduceLROnPlateau(optimizer)
     else:
-        # Default to cosine if unknown
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer, nb_epochs)
 
     return scheduler
 
 
-# -------------------------
-# Dataloader helpers
-# -------------------------
-
-def create_test_loader(test_dataset, batch_size, num_workers):
+def create_test_loader(test_dataset, batch_size, nb_workers):
     loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,
+        num_workers=nb_workers,
     )
     return loader
 
-
-# -------------------------
-# Logging helpers
-# -------------------------
 
 def log_hyperparameters(summary, model_name, config_values):
     hparams = {
@@ -130,10 +113,6 @@ def log_hyperparameters(summary, model_name, config_values):
     summary.add_hparams(hparams, {})
 
 
-# -------------------------
-# Model save / load helpers
-# -------------------------
-
 def get_model_save_path(save_dir, model_name):
     out_folder = os.path.join(save_dir, model_name)
     if not path.exists(out_folder):
@@ -145,20 +124,16 @@ def get_model_save_path(save_dir, model_name):
 
 def load_best_model_if_available(model, save_file, device):
     if path.exists(save_file):
-        best_model = torch.load(save_file, map_location=device)
-        best_model = best_model.to(device)
+        state_dict = torch.load(save_file, map_location=device, weights_only=True)
+        model.load_state_dict(state_dict)
         print("Loaded best model from {}".format(save_file))
     else:
-        best_model = model
         print("Best model file not found, using last epoch model.")
 
-    best_model.eval()
-    return best_model
+    model = model.to(device)
+    model.eval()
+    return model
 
-
-# -------------------------
-# Evaluation helpers
-# -------------------------
 
 def evaluate_on_test_set(model, test_loader, criterion, nb_misclassified):
     metrics = {"loss": criterion, "acc": arg_max_accuracy}
@@ -166,17 +141,15 @@ def evaluate_on_test_set(model, test_loader, criterion, nb_misclassified):
     y_pred, y_true, test_metrics = evaluate(model, test_loader, metrics)
     y_pred = np.array(y_pred).argmax(1)
 
-    bad_prediction_pairs = get_miss_classified(model, test_loader, nb_misclassified)
-    display_gallery(bad_prediction_pairs, "Bad prediction", nb_columns=3, nb_rows=3)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    bad_prediction_pairs = get_misclassified_samples(model, test_loader, nb_misclassified, device)
+    images, captions = prepare_misclassified_for_gallery(bad_prediction_pairs)
+    display_gallery(images, "Bad prediction", nb_columns=3, nb_rows=3, captions=captions)
 
     print(metrics_to_string(test_metrics, "test"))
     print(classification_report(y_true, y_pred, digits=4))
     print(confusion_matrix(y_true, y_pred))
 
-
-# -------------------------
-# Main experiment entry point
-# -------------------------
 
 def run_specific_experiment(summary, model, datasets, train_config_file):
     train_dataset, test_dataset = datasets
@@ -188,7 +161,7 @@ def run_specific_experiment(summary, model, datasets, train_config_file):
     batch_size = config_values["batch_size"]
     learning_rate = config_values["learning_rate"]
     train_ratio = config_values["train_ratio"]
-    num_workers = config_values["num_workers"]
+    nb_workers = config_values["nb_workers"]
     weight_decay = config_values["weight_decay"]
     scheduler_type = config_values["scheduler_type"]
     save_dir = config_values["save_dir"]
@@ -201,7 +174,7 @@ def run_specific_experiment(summary, model, datasets, train_config_file):
 
     save_file = get_model_save_path(save_dir, model_name)
 
-    test_loader = create_test_loader(test_dataset, batch_size, num_workers)
+    test_loader = create_test_loader(test_dataset, batch_size, nb_workers)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = create_optimizer(model, learning_rate, weight_decay)

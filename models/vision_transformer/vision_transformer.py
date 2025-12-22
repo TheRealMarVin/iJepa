@@ -31,7 +31,6 @@ class VisionTransformer(nn.Module):
         max_sequence_length = self.patch_count + (1 if self.use_class_token else 0)
 
         positional_encoding = build_sinusoidal_positional_encoding(max_sequence_length, embedding_dim)
-
         self.register_buffer("positional_embeddings", positional_encoding.unsqueeze(0), persistent=False)
 
         if self.use_class_token:
@@ -39,12 +38,10 @@ class VisionTransformer(nn.Module):
 
         encoder_list = []
         for _ in range(nb_encoder_blocks):
-            encoder_list.append(
-                TransformerEncoderBlock(embed_dim=embedding_dim, nb_heads=nb_heads)
-            )
+            encoder_list.append(TransformerEncoderBlock(embed_dim=embedding_dim, nb_heads=nb_heads))
         self.encoder_block = nn.ModuleList(encoder_list)
 
-    def forward(self, x):
+    def forward(self, x, mask_indices=None):
         batch_size = x.shape[0]
 
         embedding = self.embedding_layer(x)
@@ -56,6 +53,12 @@ class VisionTransformer(nn.Module):
             tokens = embedding
 
         tokens = tokens + self.positional_embeddings[:, :tokens.size(1), :]
+
+        if mask_indices is not None:
+            if self.use_class_token:
+                mask_indices = mask_indices + 1  # offset because CLS is at position 0
+
+            tokens = torch.gather(tokens, dim=1, index=mask_indices.unsqueeze(-1).expand(-1, -1, tokens.shape[-1]))
 
         encoder = tokens
         for block in self.encoder_block:

@@ -8,7 +8,7 @@ class Predictor(nn.Module):
         super().__init__()
 
         self.blocks = nn.ModuleList([
-            TransformerEncoderBlock(embedding_dim=embedding_dim, num_heads=nb_heads, mlp_ratio=mlp_ratio)
+            TransformerEncoderBlock(embedding_dim=embedding_dim, nb_heads=nb_heads, mlp_ratio=mlp_ratio)
             for _ in range(nb_layers)
         ])
 

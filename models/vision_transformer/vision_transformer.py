@@ -38,7 +38,7 @@ class VisionTransformer(nn.Module):
 
         encoder_list = []
         for _ in range(nb_encoder_blocks):
-            encoder_list.append(TransformerEncoderBlock(embed_dim=embedding_dim, nb_heads=nb_heads))
+            encoder_list.append(TransformerEncoderBlock(embedding_dim=embedding_dim, nb_heads=nb_heads))
         self.encoder_block = nn.ModuleList(encoder_list)
 
     def forward(self, x, mask_indices=None):

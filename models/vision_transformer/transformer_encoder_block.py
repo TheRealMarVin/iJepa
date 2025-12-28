@@ -7,7 +7,7 @@ from models.vision_transformer.multi_head_self_attention import MultiHeadSelfAtt
 class TransformerEncoderBlock(nn.Module):
     def __init__(
         self,
-        embed_dim,
+        embedding_dim,
         nb_heads,
         mlp_ratio = 4.0,
         attention_dropout = 0.0,
@@ -17,22 +17,22 @@ class TransformerEncoderBlock(nn.Module):
     ):
         super().__init__()
 
-        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm1 = nn.LayerNorm(embedding_dim)
         self.attn = MultiHeadSelfAttention(
-            embedding_dim=embed_dim,
+            embedding_dim=embedding_dim,
             nb_heads=nb_heads,
             attention_dropout=attention_dropout,
             proj_dropout=proj_dropout
         )
 
-        self.norm2 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embedding_dim)
 
-        mlp_hidden_dim = int(embed_dim * mlp_ratio)
+        mlp_hidden_dim = int(embedding_dim * mlp_ratio)
         self.mlp = nn.Sequential(
-            nn.Linear(embed_dim, mlp_hidden_dim),
+            nn.Linear(embedding_dim, mlp_hidden_dim),
             nn.GELU(),
             nn.Dropout(mlp_dropout),
-            nn.Linear(mlp_hidden_dim, embed_dim),
+            nn.Linear(mlp_hidden_dim, embedding_dim),
             nn.Dropout(mlp_dropout),
         )
 

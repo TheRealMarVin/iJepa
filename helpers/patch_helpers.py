@@ -71,8 +71,8 @@ def sample_block(nb_patches,
     return indices, pos, size
 
 def sample_multiple_blocks(
-    nb_patches,              # (nb_horizontal_patches, nb_vertical_patches)
-    num_blocks,              # number of blocks to sample
+    nb_patches,
+    num_blocks,
     min_block_height,
     max_block_height,
     min_block_width,
@@ -157,3 +157,18 @@ def build_index_mask_from_lists(context_indices_list, device=None):
 
     return masks
 
+#TODO don't think this is needed
+def gather_positional_embeddings(positional_embeddings, indices):
+    """
+    positional_embeddings: [N, D] or [1, N, D]
+    indices: [B, T] (long)
+
+    returns: [B, T, D]
+    """
+    if positional_embeddings.dim() == 3:
+        pos = positional_embeddings[0]   # [N, D]
+    else:
+        pos = positional_embeddings      # [N, D]
+
+    # pos[indices] uses advanced indexing -> [B, T, D]
+    return pos[indices]

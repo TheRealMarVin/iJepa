@@ -1,202 +1,125 @@
-import os
-from configparser import ConfigParser
-from os import path
-
-import numpy as np
+import copy
 import torch
-import torch.nn as nn
-from sklearn.metrics import classification_report, confusion_matrix
-from torch import optim
-from torch.optim import lr_scheduler
-from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
-from helpers.metrics_helpers import arg_max_accuracy
-from helpers.result_helpers import display_gallery, prepare_misclassified_for_gallery, get_misclassified_samples
-from train_eval.eval import evaluate
-from train_eval.training import train, metrics_to_string
+from helpers.patch_helpers import compute_nb_patches
+from ijepa_loss import jepa_loss_one_target
 
+def build_ijepa_config(image_size=(3, 96, 96), patch_size=(8,8)):
+    nb_patches = compute_nb_patches(image_size=image_size, patch_size=patch_size)
 
-def load_training_config(train_config_file):
-    config = ConfigParser()
-    config.read(train_config_file)
+    config = {
+        "nb_patches": nb_patches,
 
-    section = "default"
+        "context": {
+            "min_h": 2,
+            "max_h": 3,
+            "min_w": 2,
+            "max_w": 3,
+        },
 
-    nb_epochs = config.getint(section, "nb_epochs")
-    batch_size = config.getint(section, "batch_size")
-    learning_rate = config.getfloat(section, "learning_rate")
-
-    if config.has_option(section, "train_ratio"):
-        train_ratio = config.getfloat(section, "train_ratio")
-    else:
-        train_ratio = 0.85
-
-    if config.has_option(section, "nb_workers"):
-        nb_workers = config.getint(section, "nb_workers")
-    else:
-        nb_workers = 4
-
-    if config.has_option(section, "weight_decay"):
-        weight_decay = config.getfloat(section, "weight_decay")
-    else:
-        weight_decay = 0.0
-
-    if config.has_option(section, "scheduler_type"):
-        scheduler_type = config.get(section, "scheduler_type")
-    else:
-        scheduler_type = "cosine"  # or "plateau"
-
-    if config.has_option(section, "save_dir"):
-        save_dir = config.get(section, "save_dir")
-    else:
-        save_dir = "saved_models"
-
-    if config.has_option(section, "nb_misclassified"):
-        nb_misclassified = config.getint(section, "nb_misclassified")
-    else:
-        nb_misclassified = 18
-
-    config_values = {
-        "nb_epochs": nb_epochs,
-        "batch_size": batch_size,
-        "learning_rate": learning_rate,
-        "train_ratio": train_ratio,
-        "nb_workers": nb_workers,
-        "weight_decay": weight_decay,
-        "scheduler_type": scheduler_type,
-        "save_dir": save_dir,
-        "nb_misclassified": nb_misclassified,
+        "target": {
+            "nb_targets": 4,
+            "min_h": 1,
+            "max_h": 2,
+            "min_w": 1,
+            "max_w": 2,
+            "max_tries": 50,
+        }
     }
-
-    return config_values
-
-
-def create_optimizer(model, learning_rate, weight_decay):
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    return optimizer
+    return config
 
 
-def create_scheduler(optimizer, scheduler_type, nb_epochs):
-    scheduler_type = scheduler_type.lower()
-
-    if scheduler_type == "cosine":
-        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, nb_epochs)
-    elif scheduler_type == "plateau":
-        scheduler = lr_scheduler.ReduceLROnPlateau(optimizer)
-    else:
-        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, nb_epochs)
-
-    return scheduler
+def make_target_encoder(context_encoder):
+    target_encoder = copy.deepcopy(context_encoder)
+    target_encoder.eval()
+    for param in target_encoder.parameters():
+        param.requires_grad_(False)
+    return target_encoder
 
 
-def create_test_loader(test_dataset, batch_size, nb_workers):
-    loader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=nb_workers,
-    )
-    return loader
+@torch.no_grad()
+def ema_update(target_encoder, context_encoder, momentum):
+    for target_param, context_param in zip(target_encoder.parameters(), context_encoder.parameters()):
+        target_param.data.mul_(momentum).add_(context_param.data, alpha=1.0 - momentum)
 
 
-def log_hyperparameters(summary, model_name, config_values):
-    hparams = {
-        "model_name": model_name,
-        "learning rate": config_values["learning_rate"],
-        "batch size": config_values["batch_size"],
-        "max epochs": config_values["nb_epochs"],
-        "train ratio": config_values["train_ratio"],
-        "weight decay": config_values["weight_decay"],
-        "scheduler type": config_values["scheduler_type"],
-    }
+def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_token, optimizer, device):
+    context_encoder.train()
+    predictor.train()
 
-    summary.add_hparams(hparams, {})
+    running_loss = 0.0
+    num_steps = 0
 
+    for imgs, context_indices_list, target_indices_list_list in dataloader:
+        imgs = imgs.to(device)
 
-def get_model_save_path(save_dir, model_name):
-    out_folder = os.path.join(save_dir, model_name)
-    if not path.exists(out_folder):
-        os.makedirs(out_folder)
+        loss = jepa_loss_one_target(imgs,
+                                    context_indices_list,
+                                    target_indices_list_list,
+                                    context_encoder,
+                                    target_encoder,
+                                    predictor,
+                                    mask_token,
+                                    target_block_index=0)
 
-    save_file = os.path.join(out_folder, "best.model")
-    return save_file
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
 
+        momentum = 0.99
+        ema_update(target_encoder, context_encoder, momentum)
 
-def load_best_model_if_available(model, save_file, device):
-    if path.exists(save_file):
-        state_dict = torch.load(save_file, map_location=device, weights_only=True)
-        model.load_state_dict(state_dict)
-        print("Loaded best model from {}".format(save_file))
-    else:
-        print("Best model file not found, using last epoch model.")
+        running_loss += float(loss.item())
+        num_steps += 1
 
-    model = model.to(device)
-    model.eval()
-    return model
+    return running_loss / max(1, num_steps)
 
 
-def evaluate_on_test_set(model, test_loader, criterion, nb_misclassified):
-    metrics = {"loss": criterion, "acc": arg_max_accuracy}
+@torch.no_grad()
+def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_token, device):
+    context_encoder.eval()
+    predictor.eval()
 
-    y_pred, y_true, test_metrics = evaluate(model, test_loader, metrics)
-    y_pred = np.array(y_pred).argmax(1)
+    running_loss = 0.0
+    num_steps = 0
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    bad_prediction_pairs = get_misclassified_samples(model, test_loader, nb_misclassified, device)
-    images, captions = prepare_misclassified_for_gallery(bad_prediction_pairs)
-    display_gallery(images, "Bad prediction", nb_columns=3, nb_rows=3, captions=captions)
+    for imgs, context_indices_list, target_indices_list_list in dataloader:
+        imgs = imgs.to(device)
 
-    print(metrics_to_string(test_metrics, "test"))
-    print(classification_report(y_true, y_pred, digits=4))
-    print(confusion_matrix(y_true, y_pred))
+        loss = jepa_loss_one_target(imgs,
+                                    context_indices_list,
+                                    target_indices_list_list,
+                                    context_encoder,
+                                    target_encoder,
+                                    predictor,
+                                    mask_token,
+                                    target_block_index=0)
+
+        running_loss += float(loss.item())
+        num_steps += 1
+
+    return running_loss / max(1, num_steps)
 
 
-def run_specific_experiment(summary, model, datasets, train_config_file):
-    train_dataset, test_dataset = datasets
-    model_name = model.__class__.__name__
+def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs, print_every=5):
+    history = {"train_loss": [], "val_loss": []}
 
-    config_values = load_training_config(train_config_file)
+    for epoch in tqdm(range(1, nb_epochs + 1)):
+        train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device)
+        val_loss = None
+        if val_loader is not None:
+            val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)
+            history["val_loss"].append(val_loss)
 
-    nb_epochs = config_values["nb_epochs"]
-    batch_size = config_values["batch_size"]
-    learning_rate = config_values["learning_rate"]
-    train_ratio = config_values["train_ratio"]
-    nb_workers = config_values["nb_workers"]
-    weight_decay = config_values["weight_decay"]
-    scheduler_type = config_values["scheduler_type"]
-    save_dir = config_values["save_dir"]
-    nb_misclassified = config_values["nb_misclassified"]
+        history["train_loss"].append(train_loss)
 
-    log_hyperparameters(summary, model_name, config_values)
+        if epoch % print_every == 0:
+            if val_loss is None:
+                print(f"epoch {epoch}/{nb_epochs} | train_loss={train_loss:.6f}")
+            else:
+                print(f"epoch {epoch}/{nb_epochs} | train_loss={train_loss:.6f} | val_loss={val_loss:.6f}")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
+    print(f"Final train_loss={train_loss:.6f}")
 
-    save_file = get_model_save_path(save_dir, model_name)
-
-    test_loader = create_test_loader(test_dataset, batch_size, nb_workers)
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = create_optimizer(model, learning_rate, weight_decay)
-    scheduler = create_scheduler(optimizer, scheduler_type, nb_epochs)
-
-    train(
-        model,
-        train_dataset=train_dataset,
-        optimizer=optimizer,
-        criterion=criterion,
-        scheduler=scheduler,
-        batch_size=batch_size,
-        n_epochs=nb_epochs,
-        shuffle=True,
-        summary=summary,
-        save_file=save_file,
-        early_stop=None,
-        train_ratio=train_ratio,
-        true_index=1,
-    )
-
-    print("Finished Training")
-    best_model = load_best_model_if_available(model, save_file, device)
-
-    evaluate_on_test_set(best_model, test_loader, criterion, nb_misclassified)
+    return history

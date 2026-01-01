@@ -1,8 +1,6 @@
 import torch
 
-def collate_fn(batch):
-    # Here I assume everything are torch tensors in batch
-
+def jepa_collate_fn(batch):
     imgs = torch.stack([img for img, _, _ in batch], dim=0)
     context_lists = [ci.tolist() for _, ci, _ in batch]
     min_context_size = min(len(ci) for ci in context_lists)

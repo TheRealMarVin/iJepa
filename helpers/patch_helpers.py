@@ -172,3 +172,15 @@ def gather_positional_embeddings(positional_embeddings, indices):
 
     # pos[indices] uses advanced indexing -> [B, T, D]
     return pos[indices]
+
+def compute_nb_patches(image_size, patch_size):
+    image_height, image_width = image_size[1:]
+    patch_height, patch_width = patch_size
+
+    if image_height % patch_height != 0 or image_width % patch_width != 0:
+        raise ValueError(f"image_size {image_size} not divisible by patch_size {patch_size}")
+
+    nb_patches_h = image_height // patch_height
+    nb_patches_w = image_width // patch_width
+    return nb_patches_w, nb_patches_h
+

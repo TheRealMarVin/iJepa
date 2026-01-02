@@ -72,7 +72,7 @@ def sample_block(nb_patches,
 
 def sample_multiple_blocks(
     nb_patches,
-    num_blocks,
+    nb_blocks,
     min_block_height,
     max_block_height,
     min_block_width,
@@ -97,7 +97,7 @@ def sample_multiple_blocks(
     else:
         used_indices = set(used_indices)
 
-    for i in range(num_blocks):
+    for i in range(nb_blocks):
         found = False
         for j in range(max_tries_per_block):
             indices, pos, size = sample_block(nb_patches, min_block_height,
@@ -119,7 +119,7 @@ def generate_context_and_targets(
     max_context_height,
     min_context_width,
     max_context_width,
-    num_targets,
+    nb_targets,
     min_target_height,
     max_target_height,
     min_target_width,
@@ -134,9 +134,9 @@ def generate_context_and_targets(
     context_indices, pos, size = sample_block(nb_patches, min_context_height,
                                               max_context_height, min_context_width,
                                               max_context_width)
-    target_blocks, _ = sample_multiple_blocks(nb_patches, num_targets, min_target_height,
-                           max_target_height, min_target_width, max_target_width,
-                           max_tries_per_block, set(context_indices))
+    target_blocks, _ = sample_multiple_blocks(nb_patches, nb_targets, min_target_height,
+                                              max_target_height, min_target_width, max_target_width,
+                                              max_tries_per_block, set(context_indices))
 
 
     target_indices_list = [block["indices"] for block in target_blocks]

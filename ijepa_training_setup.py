@@ -49,7 +49,7 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
     predictor.train()
 
     running_loss = 0.0
-    num_steps = 0
+    nb_steps = 0
 
     for imgs, context_indices_list, target_indices_list_list in dataloader:
         imgs = imgs.to(device)
@@ -71,9 +71,9 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
         ema_update(target_encoder, context_encoder, momentum)
 
         running_loss += float(loss.item())
-        num_steps += 1
+        nb_steps += 1
 
-    return running_loss / max(1, num_steps)
+    return running_loss / max(1, nb_steps)
 
 
 @torch.no_grad()
@@ -82,7 +82,7 @@ def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_toke
     predictor.eval()
 
     running_loss = 0.0
-    num_steps = 0
+    nb_steps = 0
 
     for imgs, context_indices_list, target_indices_list_list in dataloader:
         imgs = imgs.to(device)
@@ -97,9 +97,9 @@ def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_toke
                                     target_block_index=0)
 
         running_loss += float(loss.item())
-        num_steps += 1
+        nb_steps += 1
 
-    return running_loss / max(1, num_steps)
+    return running_loss / max(1, nb_steps)
 
 
 def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs, print_every=5):

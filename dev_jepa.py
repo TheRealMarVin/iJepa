@@ -9,14 +9,14 @@ sample_multiple_blocks(nb_patches=(5,4), nb_blocks=5, min_block_height=2,
 
 generate_context_and_targets(
     nb_patches=(5,3),              # (nb_horizontal_patches, nb_vertical_patches)
-    min_context_height=2,
-    max_context_height=2,
-    min_context_width=2,
-    max_context_width=2,
+    context_min_height=2,
+    context_max_height=2,
+    context_min_width=2,
+    context_max_width=2,
     nb_targets=3,
-    min_target_height=3,
-    max_target_height=3,
-    min_target_width=5,
-    max_target_width=5,
+    target_min_height=3,
+    target_max_height=3,
+    target_min_width=5,
+    target_max_width=5,
     max_tries_per_block=20
 )

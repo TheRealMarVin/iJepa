@@ -43,15 +43,15 @@ class IJEPADatasetWrapper(Dataset):
 
         context_indices, target_indices_list = generate_context_and_targets(
             nb_patches=(self.nb_patches_w, self.nb_patches_h),
-            min_context_height=self.min_context_h,
-            max_context_height=self.max_context_h,
-            min_context_width=self.min_context_w,
-            max_context_width=self.max_context_w,
+            context_min_height=self.min_context_h,
+            context_max_height=self.max_context_h,
+            context_min_width=self.min_context_w,
+            context_max_width=self.max_context_w,
             nb_targets=self.nb_targets,
-            min_target_height=self.min_target_h,
-            max_target_height=self.max_target_h,
-            min_target_width=self.min_target_w,
-            max_target_width=self.max_target_w,
+            target_min_height=self.min_target_h,
+            target_max_height=self.max_target_h,
+            target_min_width=self.min_target_w,
+            target_max_width=self.max_target_w,
             max_tries_per_block=self.max_tries_per_block,
         )
 
@@ -107,15 +107,15 @@ class IJEPADatasetWrapper(Dataset):
 
         context_indices, target_indices_list = generate_context_and_targets(
             nb_patches=(self.nb_patches_w, self.nb_patches_h),
-            min_context_height=self.min_context_h,
-            max_context_height=self.max_context_h,
-            min_context_width=self.min_context_w,
-            max_context_width=self.max_context_w,
+            context_min_height=self.min_context_h,
+            context_max_height=self.max_context_h,
+            context_min_width=self.min_context_w,
+            context_max_width=self.max_context_w,
             nb_targets=self.nb_targets,
-            min_target_height=self.min_target_h,
-            max_target_height=self.max_target_h,
-            min_target_width=self.min_target_w,
-            max_target_width=self.max_target_w,
+            target_min_height=self.min_target_h,
+            target_max_height=self.max_target_h,
+            target_min_width=self.min_target_w,
+            target_max_width=self.max_target_w,
             max_tries_per_block=self.max_tries_per_block,
         )
 

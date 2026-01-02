@@ -1,13 +1,14 @@
 import torch
 
 def jepa_collate_fn(batch):
-    imgs = torch.stack([img for img, _, _ in batch], dim=0)
-    context_lists = [ci.tolist() for _, ci, _ in batch]
-    min_context_size = min(len(ci) for ci in context_lists)
-    context_indices_list = [torch.as_tensor(ci[:min_context_size], dtype=torch.long) for ci in context_lists]
+    images = torch.stack([curr_image for curr_image, _, _ in batch], dim=0)
+    context_lists = [context_indices.tolist() for _, context_indices, _ in batch]
+    context_min_size = min(len(context) for context in context_lists)
+    context_indices = [torch.as_tensor(context[:context_min_size], dtype=torch.long) for context in context_lists]
 
-    target_lists = [ti for _, _, ti in batch]
-    norm_target_lists = []
+    target_lists = [target_blocks for _, _, target_blocks in batch]
+
+    target_blocks = []
     all_lengths = []
     for sample_targets in target_lists:
         blocks = []
@@ -19,7 +20,7 @@ def jepa_collate_fn(batch):
             if list_length > 0:
                 lengths.append(list_length)
 
-        norm_target_lists.append(blocks)
+        target_blocks.append(blocks)
         all_lengths.append(min(lengths))
 
     if not all_lengths:
@@ -27,12 +28,12 @@ def jepa_collate_fn(batch):
 
     min_target_size = min(all_lengths)
 
-    target_indices_list_list = [
+    target_indices = [
         [
             torch.as_tensor(indices[:min_target_size], dtype=torch.long)
             for indices in sample_targets
         ]
-        for sample_targets in norm_target_lists
+        for sample_targets in target_blocks
     ]
 
-    return imgs, context_indices_list, target_indices_list_list
+    return images, context_indices, target_indices

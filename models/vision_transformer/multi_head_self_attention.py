@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class MultiHeadSelfAttention(nn.Module):
-    def __init__(self, embedding_dim, nb_heads, attention_dropout=0.0, proj_dropout=0.0):
+    def __init__(self, embedding_dim, nb_heads, attention_dropout=0.0, projection_dropout=0.0):
         super().__init__()
         assert embedding_dim % nb_heads == 0, "embed_dim must be divisible by nb_heads"
         self.embedding_dim = embedding_dim
@@ -12,16 +12,16 @@ class MultiHeadSelfAttention(nn.Module):
 
         self.attention_dropout = nn.Dropout(attention_dropout)
         self.qkv = nn.Linear(embedding_dim, 3 * embedding_dim, bias=True)
-        self.proj_dropout = nn.Dropout(proj_dropout)
-        self.proj = nn.Linear(embedding_dim, embedding_dim)
+        self.projection_dropout = nn.Dropout(projection_dropout)
+        self.projection = nn.Linear(embedding_dim, embedding_dim)
 
     def forward(self, x, return_attn=False):
-        B, N, D = x.shape
+        batch_size, nb_tokens, dim = x.shape
 
         qkv = self.qkv(x)
 
         # reshape into heads
-        qkv = qkv.reshape(B, N, 3, self.nb_heads, self.head_dim)
+        qkv = qkv.reshape(batch_size, nb_tokens, 3, self.nb_heads, self.head_dim)
         qkv = qkv.permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
@@ -32,9 +32,9 @@ class MultiHeadSelfAttention(nn.Module):
         attention = self.attention_dropout(attention)
         out = torch.matmul(attention, v)
 
-        out = out.transpose(1, 2).reshape(B, N, D)
-        out = self.proj(out)
-        out = self.proj_dropout(out)
+        out = out.transpose(1, 2).reshape(batch_size, nb_tokens, dim)
+        out = self.projection(out)
+        out = self.projection_dropout(out)
 
         if return_attn:
             return out, attention

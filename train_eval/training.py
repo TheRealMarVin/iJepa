@@ -185,16 +185,3 @@ def train_epoch(model, iterator, optimizer, criterion, metrics_dict, device, tru
         metric_scores[key] = value / len(iterator)
 
     return metric_scores
-
-
-def log_metrics_in_tensorboard(summary, metrics, epoch, prefix):
-    for key, value in metrics.items():
-        summary.add_scalar("{}/{}".format(prefix, key), value, epoch + 1)
-
-
-def metrics_to_string(metrics, prefix):
-    parts = []
-    for key, value in metrics.items():
-        parts.append("{} {}:{:.4f}".format(prefix, key, value))
-
-    return " ".join(parts)

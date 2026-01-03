@@ -30,10 +30,10 @@ def main_ijepa():
     # Train IJepa
     embedding_layer = ConvEmbedding(image_size[0], patch_size=patch_size, embedding_size=embedding_size)
     context_encoder = VisionTransformer(embedding_layer=embedding_layer,
-                 img_size=image_size,
-                 nb_encoder_blocks=6,
-                 nb_heads=4,
-                 use_class_token=False)
+                                        image_size=image_size,
+                                        nb_encoder_blocks=6,
+                                        nb_heads=4,
+                                        use_class_token=False)
     target_encoder = make_target_encoder(context_encoder)
 
     predictor = Predictor(embedding_dim=embedding_size, nb_layers=2, nb_heads=2)

@@ -52,7 +52,7 @@ class IJEPADatasetWrapper(Dataset):
             target_max_height=self.max_target_h,
             target_min_width=self.min_target_w,
             target_max_width=self.max_target_w,
-            max_tries_per_block=self.max_tries_per_block,
+            max_tries_per_block=self.max_tries_per_block
         )
 
         context_indices = torch.as_tensor(context_indices, dtype=torch.long)

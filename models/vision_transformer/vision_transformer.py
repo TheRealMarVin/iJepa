@@ -7,29 +7,27 @@ from models.vision_transformer.transformer_encoder_block import TransformerEncod
 
 class VisionTransformer(nn.Module):
     def __init__(self, embedding_layer,
-                 img_size,
+                 image_size,
                  nb_encoder_blocks,
                  nb_heads,
                  use_class_token=True):
         super(VisionTransformer, self).__init__()
 
-        self.img_size = img_size
+        self.image_size = image_size
         self.embedding_layer = embedding_layer
         self.use_class_token = use_class_token
 
         embedding_dim = self.embedding_layer.embedding_size
         patch_height, patch_width = self.embedding_layer.patch_size
 
-        height = self.img_size[1]
-        width = self.img_size[2]
+        height = self.image_size[1]
+        width = self.image_size[2]
 
         assert height % patch_height == 0 and width % patch_width == 0, "Image size must be divisible by patch size"
 
         self.patch_count = (height // patch_height) * (width // patch_width)
 
-        # Sequence length = patch tokens + optional class token
         max_sequence_length = self.patch_count + (1 if self.use_class_token else 0)
-
         positional_encoding = build_sinusoidal_positional_encoding(max_sequence_length, embedding_dim)
         self.register_buffer("positional_embeddings", positional_encoding.unsqueeze(0), persistent=False)
 

@@ -11,7 +11,7 @@ class ViTClassifier(nn.Module):
                 nb_heads=4):
         super(ViTClassifier, self).__init__()
         self.backbone = VisionTransformer(embedding_layer=embedding_layer,
-                                          img_size=img_size,
+                                          image_size=img_size,
                                           nb_encoder_blocks=nb_encoder_blocks,
                                           nb_heads=nb_heads,
                                           use_class_token=False)

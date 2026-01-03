@@ -104,6 +104,11 @@ def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_toke
 def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs, print_every=5):
     history = {"train_loss": [], "val_loss": []}
 
+    context_encoder = context_encoder.to(device)
+    target_encoder = target_encoder.to(device)
+    predictor = predictor.to(device)
+    mask_token = mask_token.to(device)
+
     for epoch in tqdm(range(1, nb_epochs + 1)):
         train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device)
         val_loss = None

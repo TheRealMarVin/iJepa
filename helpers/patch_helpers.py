@@ -1,22 +1,5 @@
 import random
 
-import torch
-
-
-def make_patch_grid(image_size, patch_size):
-    # TODO if I have this check it is weird!
-    if not isinstance(image_size, (tuple, list)):
-        image_size = (image_size, image_size)
-
-    image_width, image_height = image_size
-    if image_height % patch_size != 0 or image_width % patch_size != 0:
-        raise Exception("image size not compatible with patch size")
-
-    nb_vertical_patches = image_height // patch_size
-    nb_horizontal_patches = image_width // patch_size
-
-    coords = [(i, j) for j in range(nb_vertical_patches) for i in range(nb_horizontal_patches)]
-    return nb_vertical_patches, nb_horizontal_patches, coords
 
 def sample_block(nb_patches, min_height, max_height, min_width, max_width):
     nb_horizontal_patches, nb_vertical_patches = nb_patches
@@ -74,25 +57,10 @@ def generate_context_and_targets(nb_patches, context_min_height, context_max_hei
                                               target_max_height, target_min_width, target_max_width,
                                               max_tries_per_block, set(context_indices))
 
-    # TODO this should be done in the sample
-    target_indices_list = [block["indices"] for block in target_blocks]
+    target_indices = [block["indices"] for block in target_blocks]
 
-    return context_indices, target_indices_list
+    return context_indices, target_indices
 
-def build_index_mask_from_lists(context_indices_list, device=None):
-    #TODO probably not needed
-    masks = torch.tensor(context_indices_list, dtype=torch.long, device=device)
-
-    return masks
-
-#TODO don't think this is needed
-def gather_positional_embeddings(positional_embeddings, indices):
-    if positional_embeddings.dim() == 3:
-        pos = positional_embeddings[0]   # [N, D]
-    else:
-        pos = positional_embeddings      # [N, D]
-
-    return pos[indices]
 
 def compute_nb_patches(image_size, patch_size):
     image_height, image_width = image_size[1:]

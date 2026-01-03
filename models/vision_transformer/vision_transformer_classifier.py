@@ -1,6 +1,5 @@
 import torch.nn as nn
 
-from models.vision_transformer.classifier import Classifier
 from models.vision_transformer.vision_transformer import VisionTransformer
 
 
@@ -17,9 +16,9 @@ class ViTClassifier(nn.Module):
                                           nb_heads=nb_heads,
                                           use_class_token=False)
         embedding_dim = self.backbone.embedding_layer.embedding_size
-        self.classifier = Classifier(embedding_dim, nb_output)
+        self.classifier = nn.Linear(embedding_dim, nb_output)
 
     def forward(self, x):
         encoder = self.backbone(x)
-        class_token = encoder[:, 0]
+        class_token = encoder.mean(dim=1)
         return self.classifier(class_token)

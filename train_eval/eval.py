@@ -3,18 +3,6 @@ import torch
 from tqdm import tqdm
 
 
-def reshape_prediction_for_compatibility(raw_output):
-    reshaped_res = []
-    for x in range(raw_output[0].shape[0]):
-        curr_out = []
-        for y in raw_output:
-            curr_out.append(y[x])
-
-        reshaped_res.append(curr_out)
-
-    return np.array(reshaped_res)
-
-
 def evaluate(
     model,
     iterator,
@@ -73,14 +61,3 @@ def evaluate(
         metric_scores[key] = value / len(iterator)
 
     return all_pred, all_true, metric_scores
-
-
-def convert_string(tokenizer, device, field, text):
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    tokenized_text = tokenizer(text)
-    indices = [field.vocab.stoi[x] for x in tokenized_text]
-
-    res = torch.LongTensor([indices]).to(device)
-    return res

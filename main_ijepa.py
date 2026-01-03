@@ -6,20 +6,18 @@ from torch.utils.tensorboard import SummaryWriter
 from common_training_setup import run_specific_experiment
 from datasets.ijepa_dataset import IJEPADatasetWrapper
 from helpers.dataset_helpers import get_mnist_sets
-from helpers.training_helpers import jepa_collate_fn
-from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config
+from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config, jepa_collate_fn
 from models.vision_transformer.conv_embedding import ConvEmbedding
 from models.vision_transformer.ijepa_classifier import IJEPAClassifier
 from models.vision_transformer.predictor import Predictor
 from models.vision_transformer.vision_transformer import VisionTransformer
-from models.vision_transformer.vision_transformer_classifier import ViTClassifier
 
 
 def main_ijepa():
     patch_size = (4, 4)
     embedding_size = 64
     batch_size = 64
-    nb_epochs = 40
+    nb_epochs = 1
     train_set, test_set, image_size = get_mnist_sets()
 
     jepa_config = build_ijepa_config(image_size, patch_size)

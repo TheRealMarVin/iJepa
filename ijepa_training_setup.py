@@ -51,16 +51,15 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
     running_loss = 0.0
     nb_steps = 0
 
-    for imgs, context_indices_list, target_indices_list_list in dataloader:
-        imgs = imgs.to(device)
-
-        loss = jepa_loss_one_target(imgs,
-                                    context_indices_list,
-                                    target_indices_list_list,
+    for images, context_indices, target_indices in dataloader:
+        loss = jepa_loss_one_target(images,
+                                    context_indices,
+                                    target_indices,
                                     context_encoder,
                                     target_encoder,
                                     predictor,
                                     mask_token,
+                                    device,
                                     target_block_index=0)
 
         optimizer.zero_grad(set_to_none=True)

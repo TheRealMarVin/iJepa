@@ -3,7 +3,7 @@ import torch
 from tqdm import tqdm
 
 from helpers.patch_helpers import compute_nb_patches
-from ijepa_loss import jepa_loss_one_target
+from ijepa_loss import jepa_loss
 
 def build_ijepa_config(image_size=(3, 96, 96), patch_size=(8,8)):
     nb_patches = compute_nb_patches(image_size=image_size, patch_size=patch_size)
@@ -52,15 +52,14 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
     nb_steps = 0
 
     for images, context_indices, target_indices in dataloader:
-        loss = jepa_loss_one_target(images,
-                                    context_indices,
-                                    target_indices,
-                                    context_encoder,
-                                    target_encoder,
-                                    predictor,
-                                    mask_token,
-                                    device,
-                                    target_block_index=0)
+        loss = jepa_loss(images,
+                         context_indices,
+                         target_indices,
+                         context_encoder,
+                         target_encoder,
+                         predictor,
+                         mask_token,
+                         device)
 
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -86,14 +85,14 @@ def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_toke
     for imgs, context_indices_list, target_indices_list_list in dataloader:
         imgs = imgs.to(device)
 
-        loss = jepa_loss_one_target(imgs,
-                                    context_indices_list,
-                                    target_indices_list_list,
-                                    context_encoder,
-                                    target_encoder,
-                                    predictor,
-                                    mask_token,
-                                    target_block_index=0)
+        loss = jepa_loss(imgs,
+                         context_indices_list,
+                         target_indices_list_list,
+                         context_encoder,
+                         target_encoder,
+                         predictor,
+                         mask_token,
+                         target_block_index=0)
 
         running_loss += float(loss.item())
         nb_steps += 1

@@ -5,7 +5,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from common_training_setup import run_specific_experiment
 from datasets.ijepa_dataset import IJEPADatasetWrapper
-from helpers.dataset_helpers import get_mnist_sets
+from helpers.dataset_helpers import get_mnist_sets, get_stl10_sets
 from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config, jepa_collate_fn
 from models.vision_transformer.conv_embedding import ConvEmbedding
 from models.vision_transformer.ijepa_classifier import IJEPAClassifier
@@ -14,11 +14,11 @@ from models.vision_transformer.vision_transformer import VisionTransformer
 
 
 def main_ijepa():
-    patch_size = (4, 4)
+    patch_size = (8, 8)
     embedding_size = 64
     batch_size = 64
     nb_epochs = 200
-    train_set, test_set, image_size = get_mnist_sets()
+    train_set, test_set, image_size = get_stl10_sets()
 
     jepa_config = build_ijepa_config(image_size, patch_size)
     jepa_train_set = IJEPADatasetWrapper(train_set, jepa_config)

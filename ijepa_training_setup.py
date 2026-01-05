@@ -21,9 +21,9 @@ def build_ijepa_config(image_size=(3, 96, 96), patch_size=(8,8)):
         "target": {
             "nb_targets": 4,
             "min_h": 1,
-            "max_h": 2,
+            "max_h": 3,
             "min_w": 1,
-            "max_w": 2,
+            "max_w": 3,
             "max_tries": 50,
         }
     }
@@ -129,12 +129,22 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
 
 
 def jepa_collate_fn(batch):
-    images = torch.stack([curr_image for curr_image, _, _ in batch], dim=0)
-    context_lists = [context_indices.tolist() for _, context_indices, _ in batch]
-    context_min_size = min(len(context) for context in context_lists)
-    context_indices = torch.stack([torch.as_tensor(context[:context_min_size], dtype=torch.long) for context in context_lists],dim=0)
+    valid_batch = []
+    for curr_image, context_indices, target_blocks in batch:
+        if len(target_blocks) > 0:
+            valid_batch.append((curr_image, context_indices, target_blocks))
 
-    target_lists = [target_blocks for _, _, target_blocks in batch]
+    if len(valid_batch) == 0:
+        raise ValueError("No valid samples in batch (no target blocks).")
+
+    images = torch.stack([curr_image for curr_image, _, _ in valid_batch], dim=0)
+
+    context_lists = [context_indices.tolist() for _, context_indices, _ in valid_batch]
+    context_min_size = min(len(context) for context in context_lists)
+    context_indices = torch.stack([torch.as_tensor(context[:context_min_size], dtype=torch.long) for context in context_lists], dim=0)
+
+    target_lists = [target_blocks for _, _, target_blocks in valid_batch]
+
     target_blocks = []
     all_lengths = []
     for sample_targets in target_lists:
@@ -142,20 +152,25 @@ def jepa_collate_fn(batch):
         lengths = []
         for indices in sample_targets:
             indices_list = indices.tolist()
-            blocks.append(indices_list)
-            list_length = len(indices_list)
-            if list_length > 0:
-                lengths.append(list_length)
+            if len(indices_list) > 0:
+                blocks.append(indices_list)
+                lengths.append(len(indices_list))
+
+        if len(blocks) == 0:
+            continue
 
         target_blocks.append(blocks)
         all_lengths.append(min(lengths))
 
-    if not all_lengths:
+    if len(target_blocks) == 0:
         raise ValueError("No target indices found in batch (all blocks empty).")
 
     min_target_size = min(all_lengths)
+    min_nb_blocks = min(len(sample_targets) for sample_targets in target_blocks)
 
-    target_indices = torch.stack([torch.stack([torch.as_tensor(indices[:min_target_size], dtype=torch.long) for indices in sample_targets], dim=0) for sample_targets in target_blocks], dim=0)
+    target_indices = torch.stack([
+        torch.stack([torch.as_tensor(indices[:min_target_size], dtype=torch.long) for indices in sample_targets[:min_nb_blocks]], dim=0)
+        for sample_targets in target_blocks
+    ], dim=0)
 
     return images, context_indices, target_indices
-

@@ -19,7 +19,7 @@ def get_mnist_sets():
 
 
 def get_cifar10_sets():
-    image_resolution = (1, 32, 32)
+    image_resolution = (3, 32, 32)
 
     train_transform = transforms.Compose([
         transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
@@ -34,7 +34,7 @@ def get_cifar10_sets():
 
     return train_set, test_set, image_resolution
 
-def get_stl10_sets():
+def get_stl10_sets(train_split="train"):
     image_resolution = (3, 96, 96)
 
     transform_train = transforms.Compose([
@@ -53,7 +53,7 @@ def get_stl10_sets():
 
     train_dataset = STL10(
         root="./data",
-        split="train",
+        split=train_split,
         download=True,
         transform=transform_train
     )

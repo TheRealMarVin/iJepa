@@ -40,7 +40,7 @@ def evaluate(
                 outputs, _ = outputs
 
             for key, metric in metrics_dict.items():
-                batch_metric = metric(outputs.detach(), targets.view(-1).detach())
+                batch_metric = metric(outputs.detach().cpu(), targets.view(-1).detach().cpu())
 
                 if isinstance(batch_metric, torch.Tensor):
                     metric_value = batch_metric.item()

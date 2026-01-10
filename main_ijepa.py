@@ -15,9 +15,9 @@ from models.vision_transformer.vision_transformer import VisionTransformer
 
 def main_ijepa():
     patch_size = (8, 8)
-    embedding_size = 64
-    batch_size = 64
-    nb_epochs = 200
+    embedding_size = 384
+    batch_size = 256
+    nb_epochs = 125
     train_set, test_set, image_size = get_stl10_sets()
 
     jepa_config = build_ijepa_config(image_size, patch_size)
@@ -32,14 +32,14 @@ def main_ijepa():
     context_encoder = VisionTransformer(embedding_layer=embedding_layer,
                                         image_size=image_size,
                                         nb_encoder_blocks=6,
-                                        nb_heads=4,
+                                        nb_heads=6,
                                         use_class_token=False)
     target_encoder = make_target_encoder(context_encoder)
 
     predictor = Predictor(embedding_dim=embedding_size, nb_layers=2, nb_heads=2)
     mask_token = nn.Parameter(torch.zeros(1, 1, embedding_size))
 
-    optimizer = torch.optim.AdamW(list(context_encoder.parameters()) + list(predictor.parameters()) + [mask_token], lr=1e-4, weight_decay=0.05)
+    optimizer = torch.optim.AdamW(list(context_encoder.parameters()) + list(predictor.parameters()) + [mask_token], lr=3e-4)
 
     _ = fit(train_loader, None, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs=nb_epochs, print_every=1)
     print("pre training... Done")

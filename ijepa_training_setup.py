@@ -1,4 +1,6 @@
 import copy
+import math
+
 import torch
 from tqdm import tqdm
 
@@ -44,7 +46,12 @@ def ema_update(target_encoder, context_encoder, momentum):
         target_param.data.mul_(momentum).add_(context_param.data, alpha=1.0 - momentum)
 
 
-def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_token, optimizer, device):
+def cosine_ema(current_step, nb_steps_total, tau_base=0.996):
+    return 1 - (1 - tau_base) * (math.cos(math.pi * current_step / nb_steps_total) + 1) / 2
+
+
+def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_token, optimizer, device,
+                current_step, nb_total_steps):
     context_encoder.train()
     predictor.train()
 
@@ -65,7 +72,9 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
         loss.backward()
         optimizer.step()
 
-        momentum = 0.99
+        current_step += 1
+        print("curr_step: ", current_step)
+        momentum = cosine_ema(current_step, nb_total_steps, tau_base=0.996)
         ema_update(target_encoder, context_encoder, momentum)
 
         running_loss += float(loss.item())
@@ -108,8 +117,12 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
     predictor = predictor.to(device)
     mask_token = mask_token.to(device)
 
+    nb_steps_from_epoch = len(train_loader)
+    total_steps = nb_epochs * nb_steps_from_epoch
+
     for epoch in tqdm(range(1, nb_epochs + 1)):
-        train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device)
+        train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer,
+                                 device, (epoch * nb_steps_from_epoch),total_steps)
         val_loss = None
         if val_loader is not None:
             val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)

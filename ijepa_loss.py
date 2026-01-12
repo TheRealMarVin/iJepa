@@ -37,6 +37,6 @@ def jepa_loss(images,
         pred_out = predictor(pred_in)
         pred_target = pred_out[:, -nb_tokens:, :]
 
-        total_loss += F.mse_loss(pred_target, teacher_target)
+        total_loss += F.mse_loss(pred_target, teacher_target, reduction="sum")
 
     return total_loss / nb_targets

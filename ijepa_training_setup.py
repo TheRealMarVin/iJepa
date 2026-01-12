@@ -73,7 +73,6 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
         optimizer.step()
 
         current_step += 1
-        print("curr_step: ", current_step)
         momentum = cosine_ema(current_step, nb_total_steps, tau_base=0.996)
         ema_update(target_encoder, context_encoder, momentum)
 

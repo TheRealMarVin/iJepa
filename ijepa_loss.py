@@ -15,7 +15,7 @@ def jepa_loss(images,
 
     batch_size = images.shape[0]
     embedding_dim = mask_token.shape[-1]
-    nb_targets = target_indices.shape[1]
+    nb_targets = len(target_indices)
 
     with torch.no_grad():
         teacher_tokens = target_encoder(images)
@@ -25,7 +25,7 @@ def jepa_loss(images,
 
     total_loss = 0.0
     for target_index in range(nb_targets):
-        curr_target_indices = target_indices[:, target_index, :].to(device)
+        curr_target_indices = target_indices[target_index].to(device)
         nb_tokens = curr_target_indices.shape[1]
 
         teacher_target = torch.gather(teacher_tokens, dim=1, index=curr_target_indices.unsqueeze(-1).expand(-1, -1, teacher_tokens.shape[-1]))

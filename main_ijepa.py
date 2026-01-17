@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from common_training_setup import run_specific_experiment
+
+from datasets.ijepa_collate import JepaCollate
 from datasets.ijepa_dataset import IJEPADatasetWrapper
 from helpers.dataset_helpers import get_mnist_sets, get_stl10_sets
 from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config, jepa_collate_fn
@@ -21,9 +23,11 @@ def main_ijepa():
     train_set, test_set, image_size = get_stl10_sets()
 
     jepa_config = build_ijepa_config(image_size, patch_size)
-    jepa_train_set = IJEPADatasetWrapper(train_set, jepa_config)
+    jepa_train_set = IJEPADatasetWrapper(train_set)
+    collate = JepaCollate(jepa_config)
+
     train_loader = DataLoader(jepa_train_set, batch_size=batch_size, shuffle=True, num_workers=4,
-                              collate_fn=jepa_collate_fn, drop_last=True)
+                              collate_fn=collate, drop_last=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

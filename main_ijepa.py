@@ -24,9 +24,12 @@ def main_ijepa():
 
     jepa_config = build_ijepa_config(image_size, patch_size)
     jepa_train_set = IJEPADatasetWrapper(train_set)
+    jepa_test_set = IJEPADatasetWrapper(test_set)
     collate = JepaCollate(jepa_config)
 
     train_loader = DataLoader(jepa_train_set, batch_size=batch_size, shuffle=True, num_workers=4,
+                              collate_fn=collate, drop_last=True)
+    test_loader = DataLoader(jepa_test_set, batch_size=batch_size, shuffle=False, num_workers=4,
                               collate_fn=collate, drop_last=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -45,7 +48,8 @@ def main_ijepa():
 
     optimizer = torch.optim.AdamW(list(context_encoder.parameters()) + list(predictor.parameters()) + [mask_token], lr=3e-4)
 
-    _ = fit(train_loader, None, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs=nb_epochs, print_every=1)
+    _ = fit(train_loader, test_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device,
+            nb_epochs=nb_epochs, eval_every=1, print_every=1)
     print("pre training... Done")
     # Freeze backbone and create a classifier using IJepa
     for p in target_encoder.parameters():

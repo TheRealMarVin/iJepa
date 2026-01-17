@@ -59,14 +59,8 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
     nb_steps = 0
 
     for images, context_indices, target_indices in dataloader:
-        loss = jepa_loss(images,
-                         context_indices,
-                         target_indices,
-                         context_encoder,
-                         target_encoder,
-                         predictor,
-                         mask_token,
-                         device)
+        loss = jepa_loss(images, context_indices, target_indices, context_encoder, target_encoder,
+                         predictor, mask_token, device)
 
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -90,17 +84,11 @@ def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_toke
     running_loss = 0.0
     nb_steps = 0
 
-    for imgs, context_indices_list, target_indices_list_list in dataloader:
-        imgs = imgs.to(device)
+    for images, context_indices, target_indices in dataloader:
+        images = images.to(device)
 
-        loss = jepa_loss(imgs,
-                         context_indices_list,
-                         target_indices_list_list,
-                         context_encoder,
-                         target_encoder,
-                         predictor,
-                         mask_token,
-                         target_block_index=0)
+        loss = jepa_loss(images, context_indices, target_indices, context_encoder, target_encoder,
+                         predictor, mask_token, device)
 
         running_loss += float(loss.item())
         nb_steps += 1
@@ -108,7 +96,7 @@ def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_toke
     return running_loss / max(1, nb_steps)
 
 
-def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs, print_every=5):
+def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs, eval_every=5, print_every=5):
     history = {"train_loss": [], "val_loss": []}
 
     context_encoder = context_encoder.to(device)
@@ -123,7 +111,7 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
         train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer,
                                  device, (epoch * nb_steps_from_epoch),total_steps)
         val_loss = None
-        if val_loader is not None:
+        if val_loader is not None and epoch % eval_every == 0:
             val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)
             history["val_loss"].append(val_loss)
 

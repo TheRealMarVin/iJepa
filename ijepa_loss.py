@@ -2,14 +2,8 @@ import torch
 import torch.nn.functional as F
 
 
-def jepa_loss(images,
-              context_indices,
-              target_indices,
-              context_encoder,
-              target_encoder,
-              predictor,
-              mask_token,
-              device):
+def jepa_loss(images, context_indices, target_indices, context_encoder, target_encoder,
+              predictor, mask_token, device):
     images = images.to(device)
     context_indices = context_indices.to(device)
 

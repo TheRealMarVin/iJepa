@@ -15,22 +15,24 @@ def jepa_loss(images, context_indices, target_indices, context_encoder, target_e
         teacher_tokens = target_encoder(images)
 
     context_tokens = context_encoder(images, mask_indices=context_indices)
-    pos = context_encoder.positional_embeddings.to(device)[0]
+    position_embeddings = context_encoder.positional_embeddings.to(device)[0]
 
-    total_loss = 0.0
+    losses = []
     for target_index in range(nb_targets):
         curr_target_indices = target_indices[target_index].to(device)
-        nb_tokens = curr_target_indices.shape[1]
+        target_size = curr_target_indices.shape[1]
 
-        teacher_target = torch.gather(teacher_tokens, dim=1, index=curr_target_indices.unsqueeze(-1).expand(-1, -1, teacher_tokens.shape[-1]))
-        target_pos = pos[curr_target_indices]
+        curr_mask_tokens = mask_token
+        curr_mask_tokens = curr_mask_tokens.expand(batch_size, target_size, embedding_dim).clone()
+        curr_mask_position_embeddings = torch.stack([position_embeddings[curr_target_indices[i], :] for i in range(batch_size)])
+        curr_mask_tokens += curr_mask_position_embeddings
 
-        mask_tokens = mask_token.expand(batch_size, nb_tokens, embedding_dim) + target_pos
+        predictor_input = torch.cat([context_tokens, curr_mask_tokens], dim=1)
+        predictor_output = predictor(predictor_input)
 
-        pred_in = torch.cat([context_tokens, mask_tokens], dim=1)
-        pred_out = predictor(pred_in)
-        pred_target = pred_out[:, -nb_tokens:, :]
+        predictions = predictor_output[:, -target_size:, :]
+        loss = F.mse_loss(predictions, torch.stack([teacher_tokens[i, target_indices[target_index][i]] for i in range(batch_size)]))
+        losses.append(loss)
 
-        total_loss += F.mse_loss(pred_target, teacher_target, reduction="sum")
-
-    return total_loss / nb_targets
+    total_loss = torch.mean(torch.stack(losses))
+    return total_loss

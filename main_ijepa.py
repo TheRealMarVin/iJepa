@@ -19,7 +19,7 @@ def main_ijepa():
     patch_size = (8, 8)
     embedding_size = 384
     batch_size = 256
-    nb_epochs = 125
+    nb_epochs = 20
     train_set, test_set, image_size = get_stl10_sets()
 
     jepa_config = build_ijepa_config(image_size, patch_size)

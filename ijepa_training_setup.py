@@ -116,10 +116,10 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
         if epoch == 1 or epoch % eval_every == 0:
             if val_loader is not None:
                 val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)
-                history["val_loss"].append(target_encoder, val_loss)
+                history["val_loss"].append(val_loss)
 
             if probe_evaluator is not None:
-                probe_evaluator.evaluate(display_only_accuracy=True)
+                probe_evaluator.evaluate(target_encoder, display_only_accuracy=True)
 
         history["train_loss"].append(train_loss)
 

@@ -8,6 +8,7 @@ from common_training_setup import run_specific_experiment
 from datasets.ijepa_collate import JepaCollate
 from datasets.ijepa_dataset import IJEPADatasetWrapper
 from helpers.dataset_helpers import get_mnist_sets, get_stl10_sets
+from ijepa_evaluation import IJepaEvaluator
 from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config, jepa_collate_fn
 from models.vision_transformer.conv_embedding import ConvEmbedding
 from models.vision_transformer.ijepa_classifier import IJEPAClassifier
@@ -19,8 +20,10 @@ def main_ijepa():
     patch_size = (8, 8)
     embedding_size = 384
     batch_size = 256
-    nb_epochs = 20
+    nb_epochs = 1
+
     train_set, test_set, image_size = get_stl10_sets()
+    # train_set, test_set, image_size = get_stl10_sets(train_split="unlabeled")
 
     jepa_config = build_ijepa_config(image_size, patch_size)
     jepa_train_set = IJEPADatasetWrapper(train_set)
@@ -28,9 +31,9 @@ def main_ijepa():
     collate = JepaCollate(jepa_config)
 
     train_loader = DataLoader(jepa_train_set, batch_size=batch_size, shuffle=True, num_workers=4,
-                              collate_fn=collate, drop_last=True)
+                              collate_fn=collate, drop_last=True, persistent_workers=True)
     test_loader = DataLoader(jepa_test_set, batch_size=batch_size, shuffle=False, num_workers=4,
-                              collate_fn=collate, drop_last=True)
+                              collate_fn=collate, drop_last=True, persistent_workers=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -57,13 +60,20 @@ def main_ijepa():
 
     target_encoder.eval()
 
-    nb_output = 10
-    jepa_classifier = IJEPAClassifier(target_encoder, embedding_size, nb_output)
-
-    summary = SummaryWriter()
-    train_config_file = "config/jepa_training_params.ini"
-    run_specific_experiment(summary, jepa_classifier, (train_set, test_set), train_config_file)
-    summary.close()
+    eval_train_set, eval_test_set, image_size = get_stl10_sets()
+    eval_train_loader = DataLoader(eval_train_set, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True, persistent_workers=True)
+    eval_test_loader = DataLoader(eval_test_set, batch_size=batch_size, shuffle=False, num_workers=4, drop_last=True, persistent_workers=True)
+    ijepa_evaluator = IJepaEvaluator(eval_train_loader, eval_test_loader, device)
+    ijepa_evaluator.evaluate(target_encoder)
+    # nb_output = 10
+    #
+    #
+    # jepa_classifier = IJEPAClassifier(target_encoder, embedding_size, nb_output)
+    #
+    # summary = SummaryWriter()
+    # train_config_file = "config/jepa_training_params.ini"
+    # run_specific_experiment(summary, jepa_classifier, (train_set, test_set), train_config_file)
+    # summary.close()
 
 
 if __name__ == "__main__":

@@ -2,6 +2,9 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
+import warnings
+
+warnings.filterwarnings("ignore")
 
 class IJepaEvaluator:
     def __init__(self, train_loader, test_loader, device):

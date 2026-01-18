@@ -9,7 +9,7 @@ from datasets.ijepa_collate import JepaCollate
 from datasets.ijepa_dataset import IJEPADatasetWrapper
 from helpers.dataset_helpers import get_mnist_sets, get_stl10_sets
 from ijepa_evaluation import IJepaEvaluator
-from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config, jepa_collate_fn
+from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config
 from models.vision_transformer.conv_embedding import ConvEmbedding
 from models.vision_transformer.ijepa_classifier import IJEPAClassifier
 from models.vision_transformer.predictor import Predictor
@@ -20,7 +20,7 @@ def main_ijepa():
     patch_size = (8, 8)
     embedding_size = 384
     batch_size = 256
-    nb_epochs = 1
+    nb_epochs = 30
 
     train_set, test_set, image_size = get_stl10_sets()
     # train_set, test_set, image_size = get_stl10_sets(train_split="unlabeled")

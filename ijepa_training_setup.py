@@ -79,6 +79,7 @@ def train_epoch(dataloader, context_encoder, target_encoder, predictor, mask_tok
 @torch.no_grad()
 def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_token, device):
     context_encoder.eval()
+    target_encoder.eval()
     predictor.eval()
 
     running_loss = 0.0

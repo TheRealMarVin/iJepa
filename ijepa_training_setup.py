@@ -15,18 +15,18 @@ def build_ijepa_config(image_size=(3, 96, 96), patch_size=(8,8)):
 
         "context": {
             "min_h": 2,
-            "max_h": 3,
+            "max_h": 10,
             "min_w": 2,
-            "max_w": 3,
+            "max_w": 10,
         },
 
         "target": {
             "nb_targets": 4,
             "min_h": 1,
-            "max_h": 3,
+            "max_h": 6,
             "min_w": 1,
-            "max_w": 3,
-            "max_tries": 50,
+            "max_w": 6,
+            "max_tries": 100,
         }
     }
     return config

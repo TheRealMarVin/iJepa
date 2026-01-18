@@ -51,8 +51,15 @@ def main_ijepa():
 
     optimizer = torch.optim.AdamW(list(context_encoder.parameters()) + list(predictor.parameters()) + [mask_token], lr=3e-4)
 
+    eval_train_set, eval_test_set, image_size = get_stl10_sets()
+    eval_train_loader = DataLoader(eval_train_set, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True,
+                                   persistent_workers=True)
+    eval_test_loader = DataLoader(eval_test_set, batch_size=batch_size, shuffle=False, num_workers=4, drop_last=True,
+                                  persistent_workers=True)
+    ijepa_evaluator = IJepaEvaluator(eval_train_loader, eval_test_loader, device)
+
     _ = fit(train_loader, test_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device,
-            nb_epochs=nb_epochs, eval_every=1, print_every=1)
+            nb_epochs=nb_epochs, eval_every=5, print_every=1, probe_evaluator=ijepa_evaluator)
     print("pre training... Done")
     # Freeze backbone and create a classifier using IJepa
     for p in target_encoder.parameters():
@@ -60,20 +67,7 @@ def main_ijepa():
 
     target_encoder.eval()
 
-    eval_train_set, eval_test_set, image_size = get_stl10_sets()
-    eval_train_loader = DataLoader(eval_train_set, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True, persistent_workers=True)
-    eval_test_loader = DataLoader(eval_test_set, batch_size=batch_size, shuffle=False, num_workers=4, drop_last=True, persistent_workers=True)
-    ijepa_evaluator = IJepaEvaluator(eval_train_loader, eval_test_loader, device)
     ijepa_evaluator.evaluate(target_encoder)
-    # nb_output = 10
-    #
-    #
-    # jepa_classifier = IJEPAClassifier(target_encoder, embedding_size, nb_output)
-    #
-    # summary = SummaryWriter()
-    # train_config_file = "config/jepa_training_params.ini"
-    # run_specific_experiment(summary, jepa_classifier, (train_set, test_set), train_config_file)
-    # summary.close()
 
 
 if __name__ == "__main__":

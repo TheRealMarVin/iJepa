@@ -97,7 +97,8 @@ def eval_epoch(dataloader, context_encoder, target_encoder, predictor, mask_toke
     return running_loss / max(1, nb_steps)
 
 
-def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs, eval_every=5, print_every=5):
+def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device, nb_epochs,
+        eval_every=5, print_every=5, probe_evaluator=None):
     history = {"train_loss": [], "val_loss": []}
 
     context_encoder = context_encoder.to(device)
@@ -112,9 +113,13 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
         train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer,
                                  device, (epoch * nb_steps_from_epoch),total_steps)
         val_loss = None
-        if val_loader is not None and (epoch == 1 or epoch % eval_every == 0):
-            val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)
-            history["val_loss"].append(val_loss)
+        if epoch == 1 or epoch % eval_every == 0:
+            if val_loader is not None:
+                val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)
+                history["val_loss"].append(target_encoder, val_loss)
+
+            if probe_evaluator is not None:
+                probe_evaluator.evaluate(display_only_accuracy=True)
 
         history["train_loss"].append(train_loss)
 
@@ -127,51 +132,3 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
     print(f"Final train_loss={train_loss:.6f}")
 
     return history
-
-
-def jepa_collate_fn(batch):
-    valid_batch = []
-    for curr_image, context_indices, target_blocks in batch:
-        if len(target_blocks) > 0:
-            valid_batch.append((curr_image, context_indices, target_blocks))
-
-    if len(valid_batch) == 0:
-        raise ValueError("No valid samples in batch (no target blocks).")
-
-    images = torch.stack([curr_image for curr_image, _, _ in valid_batch], dim=0)
-
-    context_lists = [context_indices.tolist() for _, context_indices, _ in valid_batch]
-    context_min_size = min(len(context) for context in context_lists)
-    context_indices = torch.stack([torch.as_tensor(context[:context_min_size], dtype=torch.long) for context in context_lists], dim=0)
-
-    target_lists = [target_blocks for _, _, target_blocks in valid_batch]
-
-    target_blocks = []
-    all_lengths = []
-    for sample_targets in target_lists:
-        blocks = []
-        lengths = []
-        for indices in sample_targets:
-            indices_list = indices.tolist()
-            if len(indices_list) > 0:
-                blocks.append(indices_list)
-                lengths.append(len(indices_list))
-
-        if len(blocks) == 0:
-            continue
-
-        target_blocks.append(blocks)
-        all_lengths.append(min(lengths))
-
-    if len(target_blocks) == 0:
-        raise ValueError("No target indices found in batch (all blocks empty).")
-
-    min_target_size = min(all_lengths)
-    min_nb_blocks = min(len(sample_targets) for sample_targets in target_blocks)
-
-    target_indices = torch.stack([
-        torch.stack([torch.as_tensor(indices[:min_target_size], dtype=torch.long) for indices in sample_targets[:min_nb_blocks]], dim=0)
-        for sample_targets in target_blocks
-    ], dim=0)
-
-    return images, context_indices, target_indices

@@ -11,11 +11,11 @@ class IJepaEvaluator:
         self.val_loader = test_loader
         self.probe = None
 
-    def evaluate(self, model):
+    def evaluate(self, model, display_only_accuracy=False):
         model = model.eval()
         model = model.to(self.device)
 
-        self._train_probe(model)
+        self._train_probe(model, display_only_accuracy)
 
     def _make_inputs_from_images(self, model, dataloader):
         inputs, labels = [], []
@@ -30,7 +30,7 @@ class IJepaEvaluator:
 
         return inputs, labels
 
-    def _train_probe(self, model):
+    def _train_probe(self, model, display_only_accuracy):
         train_embeddings, train_labels = self._make_inputs_from_images(model, self.train_loader)
 
         probe = LogisticRegression(max_iter=100)
@@ -44,5 +44,6 @@ class IJepaEvaluator:
 
         acc = accuracy_score(eval_labels, test_pred)
         print("Probe Accuracy : ", acc)
-        print(classification_report(eval_labels, test_pred, digits=4))
-        print(confusion_matrix(eval_labels, test_pred))
+        if not display_only_accuracy:
+            print(classification_report(eval_labels, test_pred, digits=4))
+            print(confusion_matrix(eval_labels, test_pred))

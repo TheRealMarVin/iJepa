@@ -111,9 +111,9 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
 
     for epoch in tqdm(range(nb_epochs)):
         train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer,
-                                 device, (epoch * nb_steps_from_epoch),total_steps)
+                                 device, ((epoch) * nb_steps_from_epoch),total_steps)
         val_loss = None
-        if epoch == 1 or epoch % eval_every == 0:
+        if epoch % eval_every == 0:
             if val_loader is not None:
                 val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)
                 history["val_loss"].append(val_loss)
@@ -125,9 +125,9 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
 
         if epoch % print_every == 0:
             if val_loss is None:
-                print(f"epoch {epoch}/{nb_epochs + 1} | train_loss={train_loss:.6f}")
+                print(f"epoch {epoch + 1}/{nb_epochs} | train_loss={train_loss:.6f}")
             else:
-                print(f"epoch {epoch}/{nb_epochs + 1} | train_loss={train_loss:.6f} | val_loss={val_loss:.6f}")
+                print(f"epoch {epoch + 1}/{nb_epochs} | train_loss={train_loss:.6f} | val_loss={val_loss:.6f}")
 
     print(f"Final train_loss={train_loss:.6f}")
 

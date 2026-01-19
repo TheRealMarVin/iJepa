@@ -113,7 +113,7 @@ def fit(train_loader, val_loader, context_encoder, target_encoder, predictor, ma
         train_loss = train_epoch(train_loader, context_encoder, target_encoder, predictor, mask_token, optimizer,
                                  device, ((epoch) * nb_steps_from_epoch),total_steps)
         val_loss = None
-        if epoch % eval_every == 0:
+        if epoch == 0 or (epoch + 1) % eval_every == 0:
             if val_loader is not None:
                 val_loss = eval_epoch(val_loader, context_encoder, target_encoder, predictor, mask_token, device)
                 history["val_loss"].append(val_loss)

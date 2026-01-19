@@ -18,12 +18,12 @@ from models.vision_transformer.vision_transformer import VisionTransformer
 
 def main_ijepa():
     patch_size = (8, 8)
-    embedding_size = 384
-    batch_size = 256
-    nb_epochs = 30
+    embedding_size = 512
+    batch_size = 512
+    nb_epochs = 100
 
-    train_set, test_set, image_size = get_stl10_sets()
-    # train_set, test_set, image_size = get_stl10_sets(train_split="unlabeled")
+    # train_set, test_set, image_size = get_stl10_sets()
+    train_set, test_set, image_size = get_stl10_sets(train_split="unlabeled")
 
     jepa_config = build_ijepa_config(image_size, patch_size)
     jepa_train_set = IJEPADatasetWrapper(train_set)
@@ -42,14 +42,12 @@ def main_ijepa():
     context_encoder = VisionTransformer(embedding_layer=embedding_layer,
                                         image_size=image_size,
                                         nb_encoder_blocks=6,
-                                        nb_heads=6,
+                                        nb_heads=8,
                                         use_class_token=False)
     target_encoder = make_target_encoder(context_encoder)
 
     predictor = Predictor(embedding_dim=embedding_size, nb_layers=2, nb_heads=2)
     mask_token = nn.Parameter(torch.zeros(1, 1, embedding_size))
-
-    optimizer = torch.optim.AdamW(list(context_encoder.parameters()) + list(predictor.parameters()) + [mask_token], lr=3e-4)
 
     eval_train_set, eval_test_set, image_size = get_stl10_sets()
     eval_train_loader = DataLoader(eval_train_set, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True,
@@ -58,6 +56,8 @@ def main_ijepa():
                                   persistent_workers=True)
     ijepa_evaluator = IJepaEvaluator(eval_train_loader, eval_test_loader, device)
 
+    optimizer = torch.optim.AdamW(list(context_encoder.parameters()) + list(predictor.parameters()) + [mask_token],
+                                  lr=3e-4, weight_decay=1e-5)
     _ = fit(train_loader, test_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device,
             nb_epochs=nb_epochs, eval_every=5, print_every=1, probe_evaluator=ijepa_evaluator)
     print("pre training... Done")
@@ -67,6 +67,7 @@ def main_ijepa():
 
     target_encoder.eval()
 
+    print("Final Evaluation")
     ijepa_evaluator.evaluate(target_encoder)
 
 

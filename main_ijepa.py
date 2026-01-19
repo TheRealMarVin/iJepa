@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-
-from common_training_setup import run_specific_experiment
 
 from datasets.ijepa_collate import JepaCollate
 from datasets.ijepa_dataset import IJEPADatasetWrapper
@@ -11,8 +8,7 @@ from helpers.dataset_helpers import get_mnist_sets, get_stl10_sets
 from ijepa_evaluation import IJepaEvaluator
 from ijepa_training_setup import fit, make_target_encoder, build_ijepa_config
 from models.vision_transformer.conv_embedding import ConvEmbedding
-from models.vision_transformer.ijepa_classifier import IJEPAClassifier
-from models.vision_transformer.predictor import Predictor
+from models.predictor import Predictor
 from models.vision_transformer.vision_transformer import VisionTransformer
 
 
@@ -42,7 +38,7 @@ def main_ijepa():
     context_encoder = VisionTransformer(embedding_layer=embedding_layer,
                                         image_size=image_size,
                                         nb_encoder_blocks=6,
-                                        nb_heads=8,
+                                        nb_heads=6,
                                         use_class_token=False)
     target_encoder = make_target_encoder(context_encoder)
 
@@ -61,6 +57,7 @@ def main_ijepa():
     _ = fit(train_loader, test_loader, context_encoder, target_encoder, predictor, mask_token, optimizer, device,
             nb_epochs=nb_epochs, eval_every=5, print_every=1, probe_evaluator=ijepa_evaluator)
     print("pre training... Done")
+
     # Freeze backbone and create a classifier using IJepa
     for p in target_encoder.parameters():
         p.requires_grad_(False)

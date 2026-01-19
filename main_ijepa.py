@@ -15,7 +15,7 @@ from models.vision_transformer.vision_transformer import VisionTransformer
 def main_ijepa():
     patch_size = (8, 8)
     embedding_size = 512
-    batch_size = 512
+    batch_size = 128
     nb_epochs = 100
 
     # train_set, test_set, image_size = get_stl10_sets()
@@ -38,11 +38,11 @@ def main_ijepa():
     context_encoder = VisionTransformer(embedding_layer=embedding_layer,
                                         image_size=image_size,
                                         nb_encoder_blocks=6,
-                                        nb_heads=6,
+                                        nb_heads=8,
                                         use_class_token=False)
     target_encoder = make_target_encoder(context_encoder)
 
-    predictor = Predictor(embedding_dim=embedding_size, nb_layers=2, nb_heads=2)
+    predictor = Predictor(embedding_dim=embedding_size, nb_layers=2, nb_heads=4)
     mask_token = nn.Parameter(torch.zeros(1, 1, embedding_size))
 
     eval_train_set, eval_test_set, image_size = get_stl10_sets()
